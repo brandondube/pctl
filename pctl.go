@@ -8,10 +8,6 @@ import (
 )
 
 // PIDCtl is a Proportional, Integral, Derivative controller
-//
-// If the loop is running and the Locking variable is changed, the thread
-// may deadlock.  Acquire the lock when turning off locking while the loop is
-// running to prevent this.
 type PIDCtl struct {
 	sync.Mutex
 
@@ -62,6 +58,11 @@ func (pid *PIDCtl) DisableLocking() {
 	pid.Unlock()
 }
 
+// Locking indicates if the controller uses locks
+func (pid *PIDCtl) Locking() bool {
+	return pid.locking
+}
+
 /*Loop runs the PID loop.  It takes a channel of measurements to read from
 and a channel of outputs to write to.  To stop the loop, simply close m.  The
 remaining values in the channel will be exhausted, then the loop exited.
@@ -77,7 +78,7 @@ To do multiple things with the output value, fan out the channel
 or provide that logic in the consuming function.
 
 The struct fields or lastObs() may be accessed at any time while the loop
-is running.  To guarantee that they are in sync, ensure pid.Locking == true
+is running.  To guarantee that they are in sync, ensure pid.Locking() == true
 and acquire the lock during your read.
 */
 func (pid *PIDCtl) Loop(m <-chan float64, o chan<- float64) {
