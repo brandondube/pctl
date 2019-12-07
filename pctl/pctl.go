@@ -37,12 +37,29 @@ type PIDCtl struct {
 	lastObs time.Time
 
 	// if Locking is true, the embedded mutex is acquired during the loop
-	Locking bool
+	locking bool
+
+	// Running indicates if the loop is currently running
+	Running bool
 }
 
 // LastObs returns the read-only last observation time.
 func (pid *PIDCtl) LastObs() time.Time {
 	return pid.lastObs
+}
+
+// EnableLocking enables the lock and prevents a deadlock inside a concurrently running Loop()
+func (pid *PIDCtl) EnableLocking() {
+	pid.Lock()
+	pid.locking = true
+	pid.Unlock()
+}
+
+// DisableLocking disables the lock and prevents a deadlock inside a concurrently running Loop()
+func (pid *PIDCtl) DisableLocking() {
+	pid.Lock()
+	pid.locking = false
+	pid.Unlock()
 }
 
 /*Loop runs the PID loop.  It takes a channel of measurements to read from
@@ -64,6 +81,8 @@ is running.  To guarantee that they are in sync, ensure pid.Locking == true
 and acquire the lock during your read.
 */
 func (pid *PIDCtl) Loop(m <-chan float64, o chan<- float64) {
+	pid.Running = true
+	defer func() { pid.Running = false }()
 	var (
 		// prevErr is the previous error, integral is the integral error
 		prevErr  float64 = 0
@@ -83,7 +102,7 @@ func (pid *PIDCtl) Loop(m <-chan float64, o chan<- float64) {
 			o <- pid.Output
 			continue
 		}
-		if pid.Locking {
+		if pid.locking {
 			pid.Lock()
 		}
 		dt := updateT.Sub(pid.lastObs).Seconds()
@@ -95,7 +114,7 @@ func (pid *PIDCtl) Loop(m <-chan float64, o chan<- float64) {
 		pid.lastObs = updateT
 		prevErr = err
 		o <- pid.Output
-		if pid.Locking {
+		if pid.locking {
 			pid.Unlock()
 		}
 	}
