@@ -93,10 +93,7 @@ func (pid *PIDCtl) Stop() {
 }
 
 /*Start runs the PID loop.  It takes a channel of measurements to read from
-and a channel of outputs to write to.  To stop the loop, simply close m.  The
-remaining values in the channel will be exhausted, then the loop exited.
-
-If you desire close (stop) to be immediate, use an unbuffered m channel.
+and a channel of outputs to write to.
 
 The first observation in m is used to seed the loop with a fresh measurement.
 The existing output value is sent on o to maintain synchronization.
