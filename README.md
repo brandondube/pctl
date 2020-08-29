@@ -173,7 +173,7 @@ Note that because these are discrete time control elements with their own clocks
 the relatively noisy/imprecise behavior of `time.Ticker`.  We can see the process control works well, but the controller output is flickering on and off.  Further tuning is left to the user.
 
 
-## Performance:
+## Performance
 
 To demonstrate that this controller is capable of running at MHz, we show a benchmark performed on a windows 10 computer with an i7-9700k processor:
 ```
