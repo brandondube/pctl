@@ -1,15 +1,12 @@
 package pctl
 
 import (
-	"sync"
 	"time"
 )
 
 // PID is a Proportional, Integral, Derivative controller.
 // Use IErrMax for anti windup
 type PID struct {
-	sync.Mutex
-
 	// P is the proportional gain, unitless
 	P float64
 
@@ -67,10 +64,6 @@ func (pid *PID) Update(input float64) float64 {
 		pid.integralErr = pid.IErrMax
 	}
 	derivative := (err - pid.prevErr) / dt
-	// Pterm := pid.P * err
-	// Iterm := pid.I * pid.integralErr
-	// Dterm := pid.D * derivative
-	// fmt.Println("in", input, "err", err,"P", Pterm, "I", Iterm, "D", Dterm)
 	pid.output = pid.P*err + pid.I*pid.integralErr + pid.D*derivative
 
 	pid.lastUpdate = updateT
