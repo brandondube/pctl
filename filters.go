@@ -17,7 +17,7 @@ type LPF struct {
 	last time.Time
 }
 
-// NewLPF returns a new low pass filter with the specified cutoff frequency
+// NewLPF returns a new low pass filter with the specified corner frequency
 // in Hertz
 func NewLPF(cutoffFreq float64) *LPF {
 	return &LPF{
@@ -68,7 +68,7 @@ type HPF struct {
 	last time.Time
 }
 
-// NewHPF returns a new low pass filter with the specified cutoff frequency
+// NewHPF returns a new low pass filter with the specified corner frequency
 // in Hertz
 func NewHPF(cutoffFreq float64) *HPF {
 	return &HPF{
