@@ -1,5 +1,3 @@
-/*Package pctl facilitates fluent and instrumented control of measured processes
- */
 package pctl
 
 import (
@@ -50,6 +48,13 @@ type PID struct {
 // next update, it can be retrieved with pid.Output().
 // if the input is desired, it can be retrieved with pid.Input().
 func (pid *PID) Update(input float64) float64 {
+	// first command, do nothing
+	if pid.lastUpdate.IsZero() {
+		pid.lastUpdate = time.Now()
+		pid.input = input
+		pid.output = input
+		return input
+	}
 	// update the clock and measurement
 	updateT := time.Now()
 	pid.input = input
@@ -62,6 +67,10 @@ func (pid *PID) Update(input float64) float64 {
 		pid.integralErr = pid.IErrMax
 	}
 	derivative := (err - pid.prevErr) / dt
+	// Pterm := pid.P * err
+	// Iterm := pid.I * pid.integralErr
+	// Dterm := pid.D * derivative
+	// fmt.Println("in", input, "err", err,"P", Pterm, "I", Iterm, "D", Dterm)
 	pid.output = pid.P*err + pid.I*pid.integralErr + pid.D*derivative
 
 	pid.lastUpdate = updateT
@@ -88,4 +97,9 @@ func (pid *PID) LastUpdate() time.Time {
 // if you need to debug or tune the loop
 func (pid *PID) IErr() float64 {
 	return pid.integralErr
+}
+
+// IntegralReset zeros the integral error
+func (pid *PID) IntegralReset() {
+	pid.integralErr = 0
 }
