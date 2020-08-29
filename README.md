@@ -60,8 +60,8 @@ func ExamplePID(P, I, D float64) {
 			break
 		}
 		if ticks == updates/2 {
-            pid.Setpt = 25
-            pid.IntegralReset()
+			pid.Setpt = 25
+			pid.IntegralReset()
 		}
 	}
 	fmt.Println("commands:")
