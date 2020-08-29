@@ -171,3 +171,20 @@ output:
 
 Note that because these are discrete time control elements with their own clocks, your results may differ based on
 the relatively noisy/imprecise behavior of `time.Ticker`.  We can see the process control works well, but the controller output is flickering on and off.  Further tuning is left to the user.
+
+
+## Performance:
+
+To demonstrate that this controller is capable of running at MHz, we show a benchmark performed on a windows 10 computer with an i7-9700k processor:
+```
+Running tool: C:\Go\bin\go.exe test -benchmem -run=^$ -bench ^(BenchmarkPIDLoop)$
+
+goos: windows
+goarch: amd64
+pkg: github.com/brandondube/pctl
+BenchmarkPIDLoop-8   	80000533	        14.9 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/brandondube/pctl	1.332s
+```
+
+The reciprocal of 14.9 nanoseconds is ~66MHz.
