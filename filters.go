@@ -62,10 +62,11 @@ func (l *LPF) Previous() (float64, time.Time) {
 // The cutoff frequency may not be changed; the Previous() method can retrieve
 // the state of the filter to create a new one.
 type HPF struct {
-	rc   float64
-	fc   float64
-	prev float64
-	last time.Time
+	rc     float64
+	fc     float64
+	prev   float64
+	prevIn float64
+	last   time.Time
 }
 
 // NewHPF returns a new low pass filter with the specified corner frequency
@@ -80,6 +81,7 @@ func NewHPF(cutoffFreq float64) *HPF {
 func (h *HPF) Update(input float64) float64 {
 	if h.last.IsZero() {
 		// not initialized
+		h.prevIn = input
 		h.prev = input
 		h.last = time.Now()
 		return input
@@ -87,7 +89,8 @@ func (h *HPF) Update(input float64) float64 {
 	now := time.Now()
 	dT := (now.Sub(h.last)).Seconds()
 	alpha := h.rc / (h.rc + dT)
-	h.prev = alpha * (h.prev + dT)
+	h.prev = alpha * (h.prev + input - h.prevIn)
+	h.prevIn = input
 	h.last = now
 	return h.prev
 }
