@@ -14,7 +14,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/brandondube/pctl"
 
@@ -28,9 +27,10 @@ func ExamplePID(P, I, D float64) {
 		P:     P,
 		I:     I,
 		D:     D,
+		DT:    1/1000,
 		Setpt: 100,
 	}
-	lpf := pctl.NewLPF(100.) // 200Hz filter
+	lpf := pctl.NewLPF(100., 1/1000) // 200Hz filter
 	const (
 		updates = 100
 		cmdMax  = 200
@@ -40,11 +40,8 @@ func ExamplePID(P, I, D float64) {
 		cmdhistory   []float64
 		outhistory   []float64
 		systemOutput = 0.
-		ticks        = 0
 	)
-	tick := time.NewTicker(time.Millisecond) // run loop at 1kHz
-	for {
-		<-tick.C
+	for ticks := 0; ticks < updates; ticks++ {
 		command := pid.Update(systemOutput)
 		if command > cmdMax {
 			command = cmdMax
@@ -54,11 +51,6 @@ func ExamplePID(P, I, D float64) {
 		systemOutput = (lpf.Update(systemOutput+command) - 10)
 		cmdhistory = append(cmdhistory, command)
 		outhistory = append(outhistory, systemOutput)
-		ticks++
-		if ticks == updates {
-			tick.Stop()
-			break
-		}
 		if ticks == updates/2 {
 			pid.Setpt = 25
 			pid.IntegralReset()
@@ -177,14 +169,20 @@ the relatively noisy/imprecise behavior of `time.Ticker`.  We can see the proces
 
 To demonstrate that this controller is capable of running at MHz, we show a benchmark performed on a windows 10 computer with an i7-9700k processor:
 ```
-Running tool: C:\Go\bin\go.exe test -benchmem -run=^$ -bench ^(BenchmarkPIDLoop)$
+Running tool: C:\Go\bin\go.exe test -benchmem -run=^$ github.com/brandondube/pctl -bench ^(BenchmarkPIDLoop)$
 
 goos: windows
 goarch: amd64
 pkg: github.com/brandondube/pctl
-BenchmarkPIDLoop-8   	80000533	        14.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkPIDLoop-8   	564444776	         2.12 ns/op	       0 B/op	       0 allocs/op
 PASS
-ok  	github.com/brandondube/pctl	1.332s
+ok  	github.com/brandondube/pctl	1.538s
 ```
 
-The reciprocal of 14.9 nanoseconds is ~66MHz.
+The reciprocal of 14.9 nanoseconds is ~470MHz.  At 4.5GHz, this is is ~100 clocks.  Assuming your device has double precision FPUs, you can assume the controller can run at approx 1/100th the clock speed.
+
+## Design
+
+Several designs have been iterated in this repository.  An early design used channels to communicate, which took about 500ns per update.  This was less composable than methods/functions.
+
+An intermediate design maintained clocks inside each control element.  This was less performant, but more importantly could not be used in a simulation capacity running at any speed other than real time.  Explicitly including dT (fielded as DT) in the structs allows these controllers to be used in simulation studies as well.  The nearly 10x increase in performance and better friendliness to tinygo platforms are also nice benefits.
