@@ -2,8 +2,12 @@
 
 pctl, "process control" is a package for process control in Go.  This applies to industrial processes, not the computer science term.
 
-It contains a PID controller as well as low and high pass filters.  These types are optimized for usability, not for
-maximum performance.  They are not concurrent safe, no guarantees are provided about state or safety during `Update` invocations.  The PID controller is capable of running at a few MHz on a laptop.  This should translate into 1s to 10s of kHz on embedded hardware with tinygo.
+It contains a PID controller as well as simple tools for filtering measurement data with first order low and high-pass filters, or Biquads.
+
+Its types are not concurrent safe, and use double precision, which is low cost on most software platforms.  Tinygo may perform relatively worse, although it should not matter much.  A system with a biquad and PID will require ~40 clocks per update, sufficient for 25MHz at 1GHz CPU clock, ignoring other loop elements.
+
+The user should do biquad filter design with another tool (Scipy, Matlab, online calculators, ...).  This package exists
+to assemble control systems in Go, not design them.
 
 ## Usage
 
@@ -167,19 +171,7 @@ the relatively noisy/imprecise behavior of `time.Ticker`.  We can see the proces
 
 ## Performance
 
-To demonstrate that this controller is capable of running at MHz, we show a benchmark performed on a windows 10 computer with an i7-9700k processor:
-```
-Running tool: C:\Go\bin\go.exe test -benchmem -run=^$ github.com/brandondube/pctl -bench ^(BenchmarkPIDLoop)$
-
-goos: windows
-goarch: amd64
-pkg: github.com/brandondube/pctl
-BenchmarkPIDLoop-8   	564444776	         2.12 ns/op	       0 B/op	       0 allocs/op
-PASS
-ok  	github.com/brandondube/pctl	1.538s
-```
-
-The reciprocal of 14.9 nanoseconds is ~470MHz.  At 4.5GHz, this is is ~100 clocks.  Assuming your device has double precision FPUs, you can assume the controller can run at approx 1/100th the clock speed.
+See `pctl_test.go` for a benchmark suite.  Each of these types require 2-4 ns per `Update()` on an intel i7-9700k, Windows 10 x64 platform.
 
 ## Design
 

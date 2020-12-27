@@ -46,7 +46,6 @@ func TestBiquadFilterAsymptotic(t *testing.T) {
 	target := 1.
 	for i := 0; i < 100; i++ {
 		process = bq.Update(target)
-		t.Logf("%f %f\n", process, target)
 	}
 	err := target - process
 	if math.Abs(err) > 1e-5 {
