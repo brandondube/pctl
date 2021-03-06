@@ -15,3 +15,11 @@ func Cascade(input float64, chain ...Updater) float64 {
 	}
 	return input
 }
+
+// Setpoint implements Updater and returns the process error.
+type Setpoint float64
+
+// Update computes the process error, meas - setpt
+func (s *Setpoint) Update(meas float64) float64 {
+	return meas - float64(*s)
+}

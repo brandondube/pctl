@@ -2,6 +2,7 @@ package pctl
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 )
 
@@ -50,5 +51,53 @@ func TestBiquadFilterAsymptotic(t *testing.T) {
 	err := target - process
 	if math.Abs(err) > 1e-5 {
 		t.Errorf("process of %f has error of %f, expected to converge to target=1", process, err)
+	}
+}
+
+func TestStateSpaceReducesNoise(t *testing.T) {
+	A := [][]float64{
+		{2, -1},
+		{1, 0},
+	}
+	B := []float64{5e-5, 0}
+	C := []float64{4, 0.02}
+	D := 5e-5
+	filt := NewStateSpaceFilter(A, B, C, D, nil)
+	var maxIn float64
+	var maxOut float64
+	for i := 0; i < 100; i++ {
+		in := rand.Float64()
+		if in > maxIn {
+			maxIn = in
+		}
+		out := filt.Update(in)
+		if out > maxOut {
+			maxOut = out
+		}
+	}
+	if maxOut >= maxIn {
+		t.Errorf("state-space lowpass filter failed to reduce peak noise")
+	}
+}
+
+func TestStateSpaceNonzeroOutput(t *testing.T) {
+	A := [][]float64{
+		{2, -1},
+		{1, 0},
+	}
+	B := []float64{5e-5, 0}
+	C := []float64{4, 0.02}
+	D := 5e-5
+	filt := NewStateSpaceFilter(A, B, C, D, nil)
+	var maxOut float64
+	for i := 0; i < 100; i++ {
+		in := rand.Float64()
+		out := filt.Update(in)
+		if out > maxOut {
+			maxOut = out
+		}
+	}
+	if maxOut == 0 {
+		t.Errorf("state-space lowpass filter returned zero where it should not.")
 	}
 }
