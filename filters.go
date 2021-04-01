@@ -155,7 +155,7 @@ type StateSpaceFilter struct {
 }
 
 // NewStateSpaceFilter returns a new state-space filter with the given A,B,C,D representation and initial condition
-// nil may be passed as a null initial condition (equvalent to zeros)
+// nil may be passed as a null initial condition (equivalent to zeros)
 func NewStateSpaceFilter(A [][]float64, B, C []float64, D float64, initCond []float64) *StateSpaceFilter {
 	if initCond == nil {
 		initCond = make([]float64, len(B))
@@ -184,5 +184,8 @@ func (s *StateSpaceFilter) Update(input float64) float64 {
 
 // Reset zeros the filter's internal state
 func (s *StateSpaceFilter) Reset() {
-	s.x = make([]float64, len(s.x))
+	for i := 0; i < len(s.x); i++ {
+		s.x[i] = 0
+		s.scratch[i] = 0
+	}
 }
