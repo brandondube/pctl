@@ -54,6 +54,127 @@ func (h *HPF) Update(input float64) float64 {
 	return h.prev
 }
 
+// NewBigQuadXXXX code adapted from Nigel Redmon's C++ Biquad implementation
+// see https://www.earlevel.com/main/2012/11/26/biquad-c-source-code/
+type NewBiquadFunc func(float64, float64, float64, float64) *Biquad
+
+func NewBiquadLowpass(Fs, f, Q, g float64) *Biquad {
+	Fc := f / Fs
+	K := math.Tan(math.Pi * Fc)
+	norm := 1 / (1 + K/Q + K*K)
+	a0 := K * K * norm
+	a1 := 2 * a0
+	a2 := a0
+	b1 := 2 * (K*K - 1) * norm
+	b2 := (1 - K/Q + K*K) * norm
+	return NewBiquad(a0, a1, a2, b1, b2)
+}
+
+func NewBiquadHighpass(Fs, f, Q, g float64) *Biquad {
+	Fc := f / Fs
+	K := math.Tan(math.Pi * Fc)
+	norm := 1 / (1 + K/Q + K*K)
+	a0 := norm
+	a1 := -2 * a0
+	a2 := a0
+	b1 := 2 * (K*K - 1) * norm
+	b2 := (1 - K/Q + K*K) * norm
+	return NewBiquad(a0, a1, a2, b1, b2)
+}
+
+func NewBiquadBandpass(Fs, f, Q, g float64) *Biquad {
+	Fc := f / Fs
+	K := math.Tan(math.Pi * Fc)
+	norm := 1 / (1 + K/Q + K*K)
+	a0 := K / Q * norm
+	a1 := 0.
+	a2 := -a0
+	b1 := 2 * (K*K - 1) * norm
+	b2 := (1 - K/Q + K*K) * norm
+	return NewBiquad(a0, a1, a2, b1, b2)
+}
+
+func NewBiquadNotch(Fs, f, Q, g float64) *Biquad {
+	Fc := f / Fs
+	K := math.Tan(math.Pi * Fc)
+	norm := 1 / (1 + K/Q + K*K)
+	a0 := (1 + K*K) * norm
+	a1 := 2 * (K*K - 1) * norm
+	a2 := a0
+	b1 := a1
+	b2 := (1 - K/Q + K*K) * norm
+	return NewBiquad(a0, a1, a2, b1, b2)
+}
+
+func NewBiquadPeak(Fs, f, Q, g float64) *Biquad {
+	Fc := f / Fs
+	V := math.Pow(10, math.Abs(g)/20)
+	K := math.Tan(math.Pi * Fc)
+	var norm, a0, a1, a2, b1, b2 float64
+	if g >= 0 {
+		norm = 1 / (1 + 1/Q*K + K*K)
+		a0 = (1 + V/Q*K + K*K) * norm
+		a1 = 2 * (K*K - 1) * norm
+		a2 = (1 - V/Q*K + K*K) * norm
+		b1 = a1
+		b2 = (1 - 1/Q*K + K*K) * norm
+	} else {
+		norm = 1 / (1 + V/Q*K + K*K)
+		a0 = (1 + 1/Q*K + K*K) * norm
+		a1 = 2 * (K*K - 1) * norm
+		a2 = (1 - 1/Q*K + K*K) * norm
+		b1 = a1
+		b2 = (1 - V/Q*K + K*K) * norm
+	}
+	return NewBiquad(a0, a1, a2, b1, b2)
+}
+
+func NewBiquadLowShelf(Fs, f, Q, g float64) *Biquad {
+	Fc := f / Fs
+	V := math.Pow(10, math.Abs(g)/20)
+	K := math.Tan(math.Pi * Fc)
+	var norm, a0, a1, a2, b1, b2 float64
+	if g >= 0 {
+		norm = 1 / (1 + math.Sqrt(2)*K + K*K)
+		a0 = (1 + math.Sqrt(2*V)*K + V*K*K) * norm
+		a1 = 2 * (V*K*K - 1) * norm
+		a2 = (1 - math.Sqrt(2*V)*K + V*K*K) * norm
+		b1 = 2 * (K*K - 1) * norm
+		b2 = (1 - math.Sqrt(2)*K + K*K) * norm
+	} else {
+		norm = 1 / (1 + math.Sqrt(2*V)*K + V*K*K)
+		a0 = (1 + math.Sqrt(2)*K + K*K) * norm
+		a1 = 2 * (K*K - 1) * norm
+		a2 = (1 - math.Sqrt(2)*K + K*K) * norm
+		b1 = 2 * (V*K*K - 1) * norm
+		b2 = (1 - math.Sqrt(2*V)*K + V*K*K) * norm
+	}
+	return NewBiquad(a0, a1, a2, b1, b2)
+}
+
+func NewBiquadHighShelf(Fs, f, Q, g float64) *Biquad {
+	Fc := f / Fs
+	V := math.Pow(10, math.Abs(g)/20)
+	K := math.Tan(math.Pi * Fc)
+	var norm, a0, a1, a2, b1, b2 float64
+	if g >= 0 {
+		norm = 1 / (1 + math.Sqrt(2)*K + K*K)
+		a0 = (V + math.Sqrt(2*V)*K + K*K) * norm
+		a1 = 2 * (K*K - V) * norm
+		a2 = (V - math.Sqrt(2*V)*K + K*K) * norm
+		b1 = 2 * (K*K - 1) * norm
+		b2 = (1 - math.Sqrt(2)*K + K*K) * norm
+	} else {
+		norm = 1 / (V + math.Sqrt(2*V)*K + K*K)
+		a0 = (1 + math.Sqrt(2)*K + K*K) * norm
+		a1 = 2 * (K*K - 1) * norm
+		a2 = (1 - math.Sqrt(2)*K + K*K) * norm
+		b1 = 2 * (K*K - V) * norm
+		b2 = (V - math.Sqrt(2*V)*K + K*K) * norm
+	}
+	return NewBiquad(a0, a1, a2, b1, b2)
+}
+
 // Biquad is a digital discrete-time Biquad filter.  It is implemented using the
 // "type 2 transposed" method which accumulates the least floating point error.
 //

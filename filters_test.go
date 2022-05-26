@@ -6,6 +6,11 @@ import (
 	"testing"
 )
 
+const biquadFilterCoefTol = 1e-8
+
+// these tests verify physical properties of the filters, but not e.g.
+// that the -3dB point is correct, or any internal state variables are correct
+
 func TestLowPassFilterAsymptotic(t *testing.T) {
 	lpf := NewLPF(1e6, 1e-3)
 	// 1Mhz low-pass filter has corner frequency of a MHz, corresponds to
@@ -100,4 +105,95 @@ func TestStateSpaceNonzeroOutput(t *testing.T) {
 	if maxOut == 0 {
 		t.Errorf("state-space lowpass filter returned zero where it should not.")
 	}
+}
+
+func testBiquadvsEarLevel(t *testing.T, newF NewBiquadFunc, a0, a1, a2, b1, b2 float64) {
+	// assumes below parameters (default for biquad calculator v3)
+	// were used to compute a0..b2
+	b := newF(44100, 100, 0.7071, 6)
+	if !approxEqualAbs(b.a0, a0, biquadFilterCoefTol) {
+		t.Errorf("a0 %f != %f", b.a0, a0)
+	}
+	if !approxEqualAbs(b.a1, a1, biquadFilterCoefTol) {
+		t.Errorf("a1 %f != %f", b.a1, a1)
+	}
+	if !approxEqualAbs(b.a2, a2, biquadFilterCoefTol) {
+		t.Errorf("a2 %f != %f", b.a2, a2)
+	}
+	if !approxEqualAbs(b.b1, b1, biquadFilterCoefTol) {
+		t.Errorf("b1 %f != %f", b.b1, b1)
+	}
+	if !approxEqualAbs(b.b2, b2, biquadFilterCoefTol) {
+		t.Errorf("b2 %f != %f", b.b2, b2)
+	}
+}
+
+// these tests are regression against earlevel.com, where the C++ implementation
+// was borrowed from
+
+func TestLowPassBiquadCorrectCoefs(t *testing.T) {
+	testBiquadvsEarLevel(t, NewBiquadLowpass,
+		0.00005024141818873903,
+		0.00010048283637747806,
+		0.00005024141818873903,
+		-1.979851353142371,
+		0.9800523188151258)
+}
+
+func TestHighPassBiquadCorrectCoefs(t *testing.T) {
+	testBiquadvsEarLevel(t, NewBiquadHighpass,
+		0.9899759179893742,
+		-1.9799518359787485,
+		0.9899759179893742,
+		-1.979851353142371,
+		0.9800523188151258)
+}
+
+func TestBandPassBiquadCorrectCoefs(t *testing.T) {
+	testBiquadvsEarLevel(t, NewBiquadBandpass,
+		0.009973840592437116,
+		0,
+		-0.009973840592437116,
+		-1.979851353142371,
+		0.9800523188151258)
+}
+
+func TestNotchBiquadCorrectCoefs(t *testing.T) {
+	testBiquadvsEarLevel(t, NewBiquadNotch,
+		0.990026159407563,
+		-1.979851353142371,
+		0.990026159407563,
+		-1.979851353142371,
+		0.9800523188151258)
+}
+
+func TestPeakBiquadCorrectCoefs(t *testing.T) {
+	testBiquadvsEarLevel(t, NewBiquadPeak,
+		1.0099265876771597,
+		-1.979851353142371,
+		0.9701257311379663,
+		-1.979851353142371,
+		0.9800523188151258)
+}
+
+func TestLowShelfBiquadCorrectCoefs(t *testing.T) {
+	testBiquadvsEarLevel(t, NewBiquadLowShelf,
+		1.0041645480379269,
+		-1.9797515357244457,
+		0.9759879669583226,
+		-1.9798515425143588,
+		0.9800525082063363)
+}
+
+func TestHighShelfBiquadCorrectCoefs(t *testing.T) {
+	testBiquadvsEarLevel(t, NewBiquadHighShelf,
+		1.9894003627867007,
+		-3.95042317880182,
+		1.9612237817070965,
+		-1.9798515425143588,
+		0.9800525082063363)
+}
+
+func approxEqualAbs(a, b, tol float64) bool {
+	return math.Abs(a-b) <= tol
 }
