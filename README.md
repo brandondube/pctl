@@ -1,39 +1,34 @@
 # pctl
 
-pctl, "process control" is a package for process control in Go.  This applies to industrial processes, not the computer science term.
+pctl, "process control" is a package for industrial control in Go.
 
-It contains a PID controller, as well as several building blocks for filters:
-- single-pole low and highpass
-- Biquad
-- State-space
+It contains an implementation of the classic PID controller with integral anti-windup, as well as many filter types that can be used for loop shaping:
+- single pole low pass
+- single pole high pass
+- Biquads
+- State-Space filters with an arbitrary number of states
+- FIR filters with an arbitrary number of taps
 
-Biquads and the single pole filters can be user-cascaded to make second-order section filters.
+The package declares the top-level `Cascade` function, which takes a sequence of interfaces that are met by all types in the package to facilitate SOS and other "fluent" designs.  Use of Cascade will be somewhat slower or less efficient than manually writing a chain of function calls due to the virtualization implied by interfaces.
 
-The package declares the top-level `Cascade` function, which takes a sequence of interfaces that are met by all types in the package to facilitate SOS and other "fluent" designs.
+Its types are not concurrent safe, and use double precision, which is low cost on most software platforms.  Tinygo may perform relatively worse, although it should not matter much.  The implementations of each type in this repository are relatively optimized, easily able to function at up to MHz on even a raspberry pi.
 
-Its types are not concurrent safe, and use double precision, which is low cost on most software platforms.  Tinygo may perform relatively worse, although it should not matter much.  Most methods in this package takes approximately 20 clocks to execute, which corresponds to MHz rep rates on an ordinary CPU, even a Raspberry Pi.
-
-
-Filter design is outside the scope of this package, which exists to assemble control systems in Go.
-
+For Biquads, design methods are included to synthesize common filter types from corner frequencies, etc, in applications where detailed analysis of the transfer functions or plant response are not required.
 
 ## Usage
 
 ### Biquad filter on measurement with PID controller
 
 ```go
-// Biquad, 1k sample rate, 50Hz corner freq, -6dB/octave gain
-a0 := 0.0201
-a1 := 0.0402
-a2 := a0
-b1 := -1.5610
-b2 := 0.6414
-inputFilter := pctl.NewBiquad(a0, a1, a2, b1, b2)
+// Biquad, 1k sample rate, 50Hz corner freq, maximally flat in band
+// 6 = gain; unused for LPF; see NewBiquad interface
+// or bring your own a0, a1, a2, b1, b2 coefs
+inputFilter := pctl.NewBiquadLowPass(1000, 50, math.Sqrt(2), 6)
 controller := pctl.PID{P: 1, I: 0.5, Setpt: 50, DT: 1e-3}
 for {
     input := getInput()
-    process := pctl.Cascade(input, inputFilter, controller)
-    applyControl(process)
+    controlCommand := pctl.Cascade(input, inputFilter, controller)
+    applyControl(controlCommand)
 }
 ```
 
@@ -54,27 +49,10 @@ setpt := pctl.Setpoint(50)
 FBFilter := pctl.NewStateSpaceFilter(A, B, C, D, nil)
 for {
     input := getInput()
-    process := pctl.Cascade(input, setpt, FBFilter)
-    applyControl(process)
+    controlCommand := pctl.Cascade(input, setpt, FBFilter)
+    applyControl(controlCommand)
 }
 ```
-
-### Single-pole filters and PID discrete time parameters
-
-The implementation of the PID controller and single-pole filters, unlike the Biquad and state-space filters, are not relative to the sample rate, but relative to a concept of wall time.  In other words, a LPF is designed with a corner frequency and a sampling period, the two of which are distinct.  Biquads and state-space filters are truly relative to their sample rate, not an idea of wall time.
-
-The concept of sample rate is introduced through the DT field.  It is a usage error to forget it and leave it as zero.  The types do not check this on `Update` as it reduces performance.
-
-```go
-// wrong
-ctl := &pctl.PID{P: 1, Setpt: 2}
-
-// right
-ctl := &pctl.PID{P: 1, Setpt: 2, DT: 1e-3}
-```
-
-The `NewLPF` and `NewHPF` methods make it difficult to make this error using single-pole filters.
-
 
 ### Shaped controller response, control setpoint change stability
 
@@ -97,7 +75,7 @@ Manipulating of this variable is outside the scope of pctl.  It could be e.g. a 
 
 ## Performance
 
-See `pctl_test.go` for a benchmark suite.  Most basic operations require approximately 20 clocks.  A two-state statespace filter is approximately 5x as expensive, and computational complexity increases with the number of states.
+See `pctl_test.go` for a benchmark suite.
 
 ## Design
 
@@ -109,4 +87,4 @@ The current design has been released as v1 (guaranteed stable) and is unlikely t
 
 ## Expansion
 
-This library is dependency-free and easily portable to tiny platforms, even if a float32 type-change would be required (this is as simply as ctrl+F).  Future additions shall not disturb that property.  LQR/LQG, Kalman filtering, etc, may be implemented here if the the implementations do not require a dependency on e.g. Gonum.
+This library is dependency-free outside stdlib/math and easily portable to tiny platforms, even if a float32 type-change would be required (this is as simply as ctrl+F).  Future additions shall not disturb that property.  LQR/LQG, Kalman filtering, etc, may be implemented here if the the implementations do not require a dependency on e.g. Gonum.
