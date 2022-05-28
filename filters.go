@@ -4,6 +4,10 @@ import (
 	"math"
 )
 
+// constants for FIR filter (performance optimization)
+const maxUint = ^uint(0)
+const maxInt = int(maxUint >> 1)
+
 // LPF is a digital discrete-time single pole / first order low pass filter.
 type LPF struct {
 	// DT is the inter-update time in seconds
@@ -58,6 +62,12 @@ func (h *HPF) Update(input float64) float64 {
 // see https://www.earlevel.com/main/2012/11/26/biquad-c-source-code/
 type NewBiquadFunc func(float64, float64, float64, float64) *Biquad
 
+// NewBiquadLowPass creates a new Low-Pass Biquad filter.  The input parameters are
+//
+//  Fs = sample rate (Hz)
+//  f = corner frequency (Hz)
+//  Q = quality factor
+//  g = gain (dB)  (not used; here for homogenaeity of NewBiquadFunc interface)
 func NewBiquadLowpass(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
@@ -70,6 +80,12 @@ func NewBiquadLowpass(Fs, f, Q, g float64) *Biquad {
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
+// NewBiquadHighPass creates a new High-Pass Biquad filter.  The input parameters are
+//
+//  Fs = sample rate (Hz)
+//  f = corner frequency (Hz)
+//  Q = quality factor
+//  g = gain (dB)  (not used; here for homogenaeity of NewBiquadFunc interface)
 func NewBiquadHighpass(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
@@ -82,6 +98,12 @@ func NewBiquadHighpass(Fs, f, Q, g float64) *Biquad {
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
+// NewBiquadBandPass creates a new Band-Pass Biquad filter.  The input parameters are
+//
+//  Fs = sample rate (Hz)
+//  f = corner frequency (Hz)
+//  Q = quality factor
+//  g = gain (dB) (not used; here for homogenaeity of NewBiquadFunc interface)
 func NewBiquadBandpass(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
@@ -94,6 +116,12 @@ func NewBiquadBandpass(Fs, f, Q, g float64) *Biquad {
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
+// NewBiquadNotch creates a new Notch Biquad filter.  The input parameters are
+//
+//  Fs = sample rate (Hz)
+//  f = corner frequency (Hz)
+//  Q = quality factor
+//  g = gain (not used; here for homogenaeity of NewBiquadFunc interface)
 func NewBiquadNotch(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
@@ -106,6 +134,12 @@ func NewBiquadNotch(Fs, f, Q, g float64) *Biquad {
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
+// NewBiquadPeak creates a new peaking Biquad filter.  The input parameters are
+//
+//  Fs = sample rate (Hz)
+//  f = corner frequency (Hz)
+//  Q = quality factor
+//  g = gain (dB)
 func NewBiquadPeak(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	V := math.Pow(10, math.Abs(g)/20)
@@ -129,6 +163,12 @@ func NewBiquadPeak(Fs, f, Q, g float64) *Biquad {
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
+// NewBiquadLowShelf creates a new Low-Shelf Biquad filter.  The input parameters are
+//
+//  Fs = sample rate (Hz)
+//  f = corner frequency (Hz)
+//  Q = quality factor
+//  g = gain (dB)
 func NewBiquadLowShelf(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	V := math.Pow(10, math.Abs(g)/20)
@@ -152,6 +192,12 @@ func NewBiquadLowShelf(Fs, f, Q, g float64) *Biquad {
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
+// NewBiquadHighShelf creates a new High-Shelf Biquad filter.  The input parameters are
+//
+//  Fs = sample rate (Hz)
+//  f = corner frequency (Hz)
+//  Q = quality factor
+//  g = gain (dB)
 func NewBiquadHighShelf(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	V := math.Pow(10, math.Abs(g)/20)
@@ -308,5 +354,74 @@ func (s *StateSpaceFilter) Reset() {
 	for i := 0; i < len(s.x); i++ {
 		s.x[i] = 0
 		s.scratch[i] = 0
+	}
+}
+
+// FIRFilter is a Finite Impulse Response Filter
+type FIRFilter struct {
+	// sample index
+	j int
+
+	// filter taps
+	h []float64
+
+	// update input history
+	x []float64
+}
+
+// NewFIRFilter creates a new Finite Impulse Response Filter
+func NewFIRFilter(taps []float64) *FIRFilter {
+	// copy and take exclusive possession of taps
+	// reverse it and store two copies as a performance optimization,
+	// avoiding having to jump backwards in memory
+	// see Update comments for more information
+	h := make([]float64, len(taps), 2*len(taps))
+	copy(h, taps)
+	reverse(h)
+	return &FIRFilter{
+		h: append(h, h...),
+		x: make([]float64, len(taps))} // zero initialization
+}
+
+// Update iterates the filter one sample, returning the processed output
+func (f *FIRFilter) Update(input float64) float64 {
+	// dereference everything one time (~doubles the performance!)
+	l := len(f.x)
+	j := f.j
+	xn := f.x
+	xn[j] = input // push the input onto the buffer of history
+	// j is the sample index, modulo the length of the filter; wrapping for
+	// circular buffer
+	if j++; j >= l {
+		j = 0
+	}
+	f.j = j // put j back on the struct when we're done processing it
+
+	// h is two sequential copies of the impulse response, reversed;
+	// the subslice via h0 allows us to wrap time (the circular buffer of x)
+	// without ever jumping backwards in memory, improving cache friendliness;
+	// x will always iterate 0 -> N-1
+	// and the subslice of h iterates 0 -> N-1,
+	// rather than one iterating n-> N-1 -> 0 -> n-1
+	h0 := l - j
+	var out float64
+	h := f.h[h0 : h0+l]
+	for i, x := range xn {
+		out += x * h[i]
+	}
+	return out
+}
+
+// Reset clears the filter's internal state
+func (f *FIRFilter) Reset() {
+	for i := 0; i < len(f.x); i++ {
+		f.x[i] = 0
+	}
+}
+
+// reverse reverses x in place
+func reverse(x []float64) {
+	for i, j := 0, len(x)-1; i < j; i, j = i+1, j-1 {
+		x[i], x[j] = x[j], x[i]
 	}
 }

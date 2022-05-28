@@ -8,6 +8,10 @@ import (
 
 const biquadFilterCoefTol = 1e-8
 
+func approxEqualAbs(a, b, tol float64) bool {
+	return math.Abs(a-b) <= tol
+}
+
 // these tests verify physical properties of the filters, but not e.g.
 // that the -3dB point is correct, or any internal state variables are correct
 
@@ -194,6 +198,27 @@ func TestHighShelfBiquadCorrectCoefs(t *testing.T) {
 		0.9800525082063363)
 }
 
-func approxEqualAbs(a, b, tol float64) bool {
-	return math.Abs(a-b) <= tol
+func TestIdentityFIRFilterDoesNothing(t *testing.T) {
+	f := NewFIRFilter([]float64{1, 0, 0, 0})
+	input := []float64{3.14, 2.87, 1}
+	for i := 0; i < 3; i++ {
+		in := input[i]
+		out := f.Update(in)
+		if !approxEqualAbs(in, out, 1e-16) {
+			t.Errorf("sample %d had input-output mismatch %f != %f", i, in, out)
+		}
+	}
+}
+
+func TestLagFIRFilterLags(t *testing.T) {
+	f := NewFIRFilter([]float64{0, 1, 0, 0})
+	input := []float64{3.14, 2.87, 1}
+	f.Update(input[0])
+	for i := 1; i < 3; i++ {
+		in := input[i]
+		out := f.Update(in)
+		if !approxEqualAbs(input[i-1], out, 1e-16) {
+			t.Errorf("sample %d had input-output mismatch %f != %f", i, in, out)
+		}
+	}
 }
