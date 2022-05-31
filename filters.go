@@ -357,6 +357,10 @@ func (s *StateSpaceFilter) Reset() {
 	}
 }
 
+// Significant aid in optimizing the FIR implementation was provided by
+// Josh Beecher Snyder and Egon Elbre via the #performance channel on
+// gophers slack
+
 // FIRFilter is a Finite Impulse Response Filter
 type FIRFilter struct {
 	// sample index
