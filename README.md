@@ -75,7 +75,24 @@ Manipulating of this variable is outside the scope of pctl.  It could be e.g. a 
 
 ## Performance
 
-See `pctl_test.go` for a benchmark suite.
+See `pctl_test.go` for a benchmark suite.  The FIR filter in the benchmark has 32 taps.
+
+### Mac M1 Pro
+
+M1 Pro Boost frequency = 3.2GHz; 1 clock ~=0.3125 ns.
+
+```sh
+name           time/op
+PIDLoop-10     3.50ns ± 1%
+LPF-10         4.52ns ± 2%
+HPF-10         4.49ns ± 2%
+Biquad-10      4.89ns ± 1%
+StateSpace-10  12.5ns ± 3%
+Setpoint-10    0.32ns ± 1%
+FIRFilter-10   11.8ns ± 1%
+```
+
+A reasonable average is the Biquad filter, 15.6 clocks.
 
 ## Design
 
