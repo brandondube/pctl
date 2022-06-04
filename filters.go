@@ -71,12 +71,13 @@ type NewBiquadFunc func(float64, float64, float64, float64) *Biquad
 func NewBiquadLowpass(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
-	norm := 1 / (1 + K/Q + K*K)
-	a0 := K * K * norm
+	Ksq := K * K
+	norm := 1 / (1 + K/Q + Ksq)
+	a0 := Ksq * norm
 	a1 := 2 * a0
 	a2 := a0
-	b1 := 2 * (K*K - 1) * norm
-	b2 := (1 - K/Q + K*K) * norm
+	b1 := 2 * (Ksq - 1) * norm
+	b2 := (1 - K/Q + Ksq) * norm
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
@@ -89,12 +90,13 @@ func NewBiquadLowpass(Fs, f, Q, g float64) *Biquad {
 func NewBiquadHighpass(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
-	norm := 1 / (1 + K/Q + K*K)
+	Ksq := K * K
+	norm := 1 / (1 + K/Q + Ksq)
 	a0 := norm
 	a1 := -2 * a0
 	a2 := a0
-	b1 := 2 * (K*K - 1) * norm
-	b2 := (1 - K/Q + K*K) * norm
+	b1 := 2 * (Ksq - 1) * norm
+	b2 := (1 - K/Q + Ksq) * norm
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
@@ -107,12 +109,13 @@ func NewBiquadHighpass(Fs, f, Q, g float64) *Biquad {
 func NewBiquadBandpass(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
-	norm := 1 / (1 + K/Q + K*K)
+	Ksq := K * K
+	norm := 1 / (1 + K/Q + Ksq)
 	a0 := K / Q * norm
 	a1 := 0.
 	a2 := -a0
-	b1 := 2 * (K*K - 1) * norm
-	b2 := (1 - K/Q + K*K) * norm
+	b1 := 2 * (Ksq - 1) * norm
+	b2 := (1 - K/Q + Ksq) * norm
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
@@ -125,12 +128,13 @@ func NewBiquadBandpass(Fs, f, Q, g float64) *Biquad {
 func NewBiquadNotch(Fs, f, Q, g float64) *Biquad {
 	Fc := f / Fs
 	K := math.Tan(math.Pi * Fc)
-	norm := 1 / (1 + K/Q + K*K)
-	a0 := (1 + K*K) * norm
-	a1 := 2 * (K*K - 1) * norm
+	Ksq := K * K
+	norm := 1 / (1 + K/Q + Ksq)
+	a0 := (1 + Ksq) * norm
+	a1 := 2 * (Ksq - 1) * norm
 	a2 := a0
 	b1 := a1
-	b2 := (1 - K/Q + K*K) * norm
+	b2 := (1 - K/Q + Ksq) * norm
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
 
@@ -145,20 +149,22 @@ func NewBiquadPeak(Fs, f, Q, g float64) *Biquad {
 	V := math.Pow(10, math.Abs(g)/20)
 	K := math.Tan(math.Pi * Fc)
 	var norm, a0, a1, a2, b1, b2 float64
+	Ksq := K * K
+	VKdQ := V / Q * K
 	if g >= 0 {
-		norm = 1 / (1 + 1/Q*K + K*K)
-		a0 = (1 + V/Q*K + K*K) * norm
-		a1 = 2 * (K*K - 1) * norm
-		a2 = (1 - V/Q*K + K*K) * norm
+		norm = 1 / (1 + 1/Q*K + Ksq)
+		a0 = (1 + VKdQ + Ksq) * norm
+		a1 = 2 * (Ksq - 1) * norm
+		a2 = (1 - VKdQ + Ksq) * norm
 		b1 = a1
-		b2 = (1 - 1/Q*K + K*K) * norm
+		b2 = (1 - 1/Q*K + Ksq) * norm
 	} else {
-		norm = 1 / (1 + V/Q*K + K*K)
-		a0 = (1 + 1/Q*K + K*K) * norm
-		a1 = 2 * (K*K - 1) * norm
-		a2 = (1 - 1/Q*K + K*K) * norm
+		norm = 1 / (1 + VKdQ + Ksq)
+		a0 = (1 + 1/Q*K + Ksq) * norm
+		a1 = 2 * (Ksq - 1) * norm
+		a2 = (1 - 1/Q*K + Ksq) * norm
 		b1 = a1
-		b2 = (1 - V/Q*K + K*K) * norm
+		b2 = (1 - VKdQ + Ksq) * norm
 	}
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
@@ -174,20 +180,22 @@ func NewBiquadLowShelf(Fs, f, Q, g float64) *Biquad {
 	V := math.Pow(10, math.Abs(g)/20)
 	K := math.Tan(math.Pi * Fc)
 	var norm, a0, a1, a2, b1, b2 float64
+	Ksq := K * K
+	Ksqrt2V := math.Sqrt2 * math.Sqrt(V) * K
 	if g >= 0 {
-		norm = 1 / (1 + math.Sqrt(2)*K + K*K)
-		a0 = (1 + math.Sqrt(2*V)*K + V*K*K) * norm
-		a1 = 2 * (V*K*K - 1) * norm
-		a2 = (1 - math.Sqrt(2*V)*K + V*K*K) * norm
-		b1 = 2 * (K*K - 1) * norm
-		b2 = (1 - math.Sqrt(2)*K + K*K) * norm
+		norm = 1 / (1 + math.Sqrt2*K + Ksq)
+		a0 = (1 + Ksqrt2V + V*Ksq) * norm
+		a1 = 2 * (V*Ksq - 1) * norm
+		a2 = (1 - Ksqrt2V + V*Ksq) * norm
+		b1 = 2 * (Ksq - 1) * norm
+		b2 = (1 - math.Sqrt2*K + Ksq) * norm
 	} else {
-		norm = 1 / (1 + math.Sqrt(2*V)*K + V*K*K)
-		a0 = (1 + math.Sqrt(2)*K + K*K) * norm
-		a1 = 2 * (K*K - 1) * norm
-		a2 = (1 - math.Sqrt(2)*K + K*K) * norm
-		b1 = 2 * (V*K*K - 1) * norm
-		b2 = (1 - math.Sqrt(2*V)*K + V*K*K) * norm
+		norm = 1 / (1 + Ksqrt2V + V*Ksq)
+		a0 = (1 + math.Sqrt2*K + Ksq) * norm
+		a1 = 2 * (Ksq - 1) * norm
+		a2 = (1 - math.Sqrt2*K + Ksq) * norm
+		b1 = 2 * (V*Ksq - 1) * norm
+		b2 = (1 - Ksqrt2V + V*Ksq) * norm
 	}
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
@@ -203,20 +211,22 @@ func NewBiquadHighShelf(Fs, f, Q, g float64) *Biquad {
 	V := math.Pow(10, math.Abs(g)/20)
 	K := math.Tan(math.Pi * Fc)
 	var norm, a0, a1, a2, b1, b2 float64
+	Ksq := K * K
+	Ksqrt2V := math.Sqrt2 * math.Sqrt(V) * K
 	if g >= 0 {
-		norm = 1 / (1 + math.Sqrt(2)*K + K*K)
-		a0 = (V + math.Sqrt(2*V)*K + K*K) * norm
-		a1 = 2 * (K*K - V) * norm
-		a2 = (V - math.Sqrt(2*V)*K + K*K) * norm
-		b1 = 2 * (K*K - 1) * norm
-		b2 = (1 - math.Sqrt(2)*K + K*K) * norm
+		norm = 1 / (1 + math.Sqrt2*K + Ksq)
+		a0 = (V + Ksqrt2V + Ksq) * norm
+		a1 = 2 * (Ksq - V) * norm
+		a2 = (V - Ksqrt2V + Ksq) * norm
+		b1 = 2 * (Ksq - 1) * norm
+		b2 = (1 - math.Sqrt2*K + Ksq) * norm
 	} else {
-		norm = 1 / (V + math.Sqrt(2*V)*K + K*K)
-		a0 = (1 + math.Sqrt(2)*K + K*K) * norm
-		a1 = 2 * (K*K - 1) * norm
-		a2 = (1 - math.Sqrt(2)*K + K*K) * norm
-		b1 = 2 * (K*K - V) * norm
-		b2 = (V - math.Sqrt(2*V)*K + K*K) * norm
+		norm = 1 / (V + Ksqrt2V + Ksq)
+		a0 = (1 + math.Sqrt2*K + Ksq) * norm
+		a1 = 2 * (Ksq - 1) * norm
+		a2 = (1 - math.Sqrt2*K + Ksq) * norm
+		b1 = 2 * (Ksq - V) * norm
+		b2 = (V - Ksqrt2V + Ksq) * norm
 	}
 	return NewBiquad(a0, a1, a2, b1, b2)
 }
@@ -279,7 +289,7 @@ func vectorDot(a, b []float64) float64 {
 // is returned, i.e. the final arg and return are the same slice.
 //
 // This function is equivalent to the numpy code A @ x + B * y
-// for A (nxm), x (1xm), B (1xm), y scalar
+// for A (n×m), x (1×m), B (1×m), y scalar
 func vectorMatrixProductSumScale(x []float64, A [][]float64, B []float64, y float64, out []float64) []float64 {
 	n := len(x)
 	m := len(A)
