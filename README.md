@@ -91,8 +91,23 @@ StateSpace-10  12.5ns ± 3%
 Setpoint-10    0.32ns ± 1%
 FIRFilter-10   11.8ns ± 1%
 ```
-
 A reasonable average is the Biquad filter, 15.6 clocks.
+
+### Intel i7-9700k
+
+This CPU boosts to 4.6GHz during the benchmark; 1 clock ~=0.217 ns.
+```sh
+name          time/op
+PIDLoop-8     1.99ns ± 2%
+LPF-8         3.74ns ± 1%
+HPF-8         2.80ns ± 1%
+Biquad-8      3.65ns ± 1%
+StateSpace-8  9.72ns ± 1%
+Setpoint-8    0.21ns ± 3%
+FIRFilter-8   8.66ns ± 2%
+```
+
+The Biquad filter takes 16.8 clocks.  Broadly comparable to the ARM64 M1.
 
 ## Design
 
