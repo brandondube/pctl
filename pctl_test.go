@@ -74,3 +74,25 @@ func TestSetpointCorrect(t *testing.T) {
 		t.Error("Setpoint improperly computed error")
 	}
 }
+
+func TestCascade(t *testing.T) {
+	const (
+		a     = 1.2
+		b     = 1.0 / 3.0
+		start = 37.0 / 12.0
+	)
+	s1 := new(Setpoint)
+	*s1 = a
+	s2 := new(Setpoint)
+	*s2 = b
+	expect := s2.Update(s1.Update(start))
+	got := Cascade(start, s1, s2)
+	if expect != got {
+		t.Error("sequential Update calls result not equal to Cascade")
+	}
+	expect = s1.Update(s2.Update(start))
+	got = Cascade(start, s2, s1)
+	if expect != got {
+		t.Error("sequential Update calls result not equal to Cascade")
+	}
+}
