@@ -161,6 +161,22 @@ FIRFilter-32     6.943n ± 2%
 
 Performance is ~50% higher in Windows subsystem for Linux / Ubuntu.
 
+### AMD V1500B Embedded (virtualized)
+
+This benchmark is run virtualized on a Synology NAS, with two vCPUs and 2GB of
+RAM.  The clock speed is 2.2GHz.
+
+```sh
+name             time/op
+PIDLoop-32       5.037n ± 1%
+LPF-32           8.506n ± 0%
+HPF-32           7.068n ± 0%
+Biquad-32        8.261n ± 0%
+StateSpace-32    24.76n ± 1%
+Setpoint-32      0.487n ± 1%
+FIRFilter-32     19.00n ± 2%
+```
+
 ## Design
 
 Several designs have been iterated in this repository.  An early design used
